@@ -35,7 +35,6 @@ function Get-AverageCounterInstances {
         }
         if ($i -lt $Samples - 1) { Start-Sleep -Seconds $IntervalSeconds }
     }
-    # Collect keys into an array to avoid enumeration issues
     $keys = @($results.Keys)
     foreach ($instance in $keys) {
         $results[$instance] = [math]::Round(($results[$instance] | Measure-Object -Average).Average, 2)
@@ -61,7 +60,7 @@ $htmlHeader = @"
         th { background-color: #3498db; color: white; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         .warning { color: #e74c3c; font-weight: bold; }
-        .summary { font-size: 1.1em; padding: 10px; background-color: #ecf0f1; border-left: 5px solid #e74c3c; }
+        .summary { font-sizeETDEWEB: 1.1em; padding: 10px; background-color: #ecf0f1; border-left: 5px solid #e74c3c; }
         .no-issues { color: #27ae60; }
     </style>
 </head>
@@ -187,7 +186,7 @@ foreach ($log in $eventLogs) {
     if ($errors) {
         $htmlContent += "<h3>Latest $log Error Events</h3>"
         $htmlContent += "<table><tr><th>Time</th><th>Source</th><th>Message</th></tr>"
-        foreach ($evt in $errors) {  # Changed $error to $evt
+        foreach ($evt in $errors) {
             $htmlContent += "<tr><td>$($evt.TimeGenerated)</td><td>$($evt.Source)</td><td class='warning'>$($evt.Message)</td></tr>"
             $potentialIssues += "$log error: $($evt.Message)"
         }
@@ -208,12 +207,37 @@ $htmlContent += "</div>"
 # HTML Footer
 $htmlFooter = "</body></html>"
 
-# Combine and Output to File with Full Path
+# Combine and Output to File with Error Handling
 $outputPath = Join-Path -Path $env:USERPROFILE -ChildPath "Desktop"
 $fileName = "ServerPerformanceReport_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
 $fullFilePath = Join-Path -Path $outputPath -ChildPath $fileName
-$htmlReport = $htmlHeader + $htmlContent + $htmlFooter
-$htmlReport | Out-File -FilePath $fullFilePath -Encoding UTF8
 
-# Open the report in the default browser
-Invoke-Item -Path $fullFilePath
+# Ensure the directory exists, fallback to C:\Temp or current directory if needed
+try {
+    if (-not (Test-Path -Path $outputPath)) {
+        New-Item -Path $outputPath -ItemType Directory -Force -ErrorAction Stop
+    }
+    $htmlReport = $htmlHeader + $htmlContent + $htmlFooter
+    $htmlReport | Out-File -FilePath $fullFilePath -Encoding UTF8 -ErrorAction Stop
+    Invoke-Item -Path $fullFilePath
+} catch {
+    Write-Warning "Failed to save report to Desktop: $($_.Exception.Message)"
+    # Fallback to C:\Temp
+    $fallbackPath = "C:\Temp"
+    $fullFilePath = Join-Path -Path $fallbackPath -ChildPath $fileName
+    try {
+        if (-not (Test-Path -Path $fallbackPath)) {
+            New-Item -Path $fallbackPath -ItemType Directory -Force -ErrorAction Stop
+        }
+        $htmlReport | Out-File -FilePath $fullFilePath -Encoding UTF8 -ErrorAction Stop
+        Write-Host "Report saved to fallback location: $fullFilePath"
+        Invoke-Item -Path $fullFilePath
+    } catch {
+        Write-Warning "Failed to save to C:\Temp: $($_.Exception.Message)"
+        # Final fallback to current directory
+        $fullFilePath = Join-Path -Path (Get-Location) -ChildPath $fileName
+        $htmlReport | Out-File -FilePath $fullFilePath -Encoding UTF8
+        Write-Host "Report saved to current directory: $fullFilePath"
+        Invoke-Item -Path $fullFilePath
+    }
+}
