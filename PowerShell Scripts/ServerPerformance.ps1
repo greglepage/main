@@ -35,7 +35,9 @@ function Get-AverageCounterInstances {
         }
         if ($i -lt $Samples - 1) { Start-Sleep -Seconds $IntervalSeconds }
     }
-    foreach ($instance in $results.Keys) {
+    # Collect keys into an array to avoid enumeration issues
+    $keys = @($results.Keys)
+    foreach ($instance in $keys) {
         $results[$instance] = [math]::Round(($results[$instance] | Measure-Object -Average).Average, 2)
     }
     return $results
@@ -50,58 +52,17 @@ $htmlHeader = @"
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Server Performance Report - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-        }
-        h2 {
-            color: #34495e;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 5px;
-        }
-        .section {
-            background-color: #fff;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #3498db;
-            color: white;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .warning {
-            color: #e74c3c;
-            font-weight: bold;
-        }
-        .summary {
-            font-size: 1.1em;
-            padding: 10px;
-            background-color: #ecf0f1;
-            border-left: 5px solid #e74c3c;
-        }
-        .no-issues {
-            color: #27ae60;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1 { color: #2c3e50; text-align: center; }
+        h2 { color: #34495e; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+        .section { background-color: #fff; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #3498db; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .warning { color: #e74c3c; font-weight: bold; }
+        .summary { font-size: 1.1em; padding: 10px; background-color: #ecf0f1; border-left: 5px solid #e74c3c; }
+        .no-issues { color: #27ae60; }
     </style>
 </head>
 <body>
@@ -226,9 +187,9 @@ foreach ($log in $eventLogs) {
     if ($errors) {
         $htmlContent += "<h3>Latest $log Error Events</h3>"
         $htmlContent += "<table><tr><th>Time</th><th>Source</th><th>Message</th></tr>"
-        foreach ($error in $errors) {
-            $htmlContent += "<tr><td>$($error.TimeGenerated)</td><td>$($error.Source)</td><td class='warning'>$($error.Message)</td></tr>"
-            $potentialIssues += "$log error: $($error.Message)"
+        foreach ($evt in $errors) {  # Changed $error to $evt
+            $htmlContent += "<tr><td>$($evt.TimeGenerated)</td><td>$($evt.Source)</td><td class='warning'>$($evt.Message)</td></tr>"
+            $potentialIssues += "$log error: $($evt.Message)"
         }
         $htmlContent += "</table>"
     }
@@ -247,9 +208,12 @@ $htmlContent += "</div>"
 # HTML Footer
 $htmlFooter = "</body></html>"
 
-# Combine and Output to File
+# Combine and Output to File with Full Path
+$outputPath = Join-Path -Path $env:USERPROFILE -ChildPath "Desktop"
+$fileName = "ServerPerformanceReport_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+$fullFilePath = Join-Path -Path $outputPath -ChildPath $fileName
 $htmlReport = $htmlHeader + $htmlContent + $htmlFooter
-$htmlReport | Out-File "ServerPerformanceReport_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+$htmlReport | Out-File -FilePath $fullFilePath -Encoding UTF8
 
-# Optionally open the report in the default browser
-Invoke-Item "ServerPerformanceReport_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+# Open the report in the default browser
+Invoke-Item -Path $fullFilePath
