@@ -117,7 +117,8 @@ $htmlContent += "<div class='section'><h2>System Information</h2>"
 $htmlContent += "<p><strong>Server Name:</strong> $env:COMPUTERNAME</p>"
 $os = Get-WmiObject Win32_OperatingSystem
 $htmlContent += "<p><strong>Operating System:</strong> $($os.Version)</p>"
-$uptime = (Get-Date) - $os.LastBootUpTime
+$lastBoot = [Management.ManagementDateTimeConverter]::ToDateTime($os.LastBootUpTime)
+$uptime = (Get-Date) - $lastBoot
 $htmlContent += "<p><strong>Uptime:</strong> $($uptime.Days) days $($uptime.Hours) hours</p>"
 $htmlContent += "</div>"
 
