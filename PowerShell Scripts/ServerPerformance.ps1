@@ -91,8 +91,16 @@ $cpuClass = if ($cpuUsage -gt 80) { "warning" } else { "" }
 $htmlContent += "<p><strong>Average CPU Usage:</strong> <span class='$cpuClass'>$cpuUsage%</span></p>"
 if ($cpuUsage -gt 80) { $potentialIssues += "High CPU usage" }
 $topCpuProcesses = Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 -Property Name, @{Name='CPU%';Expression={
-    $runtime = (Get-Date).Subtract($_.StartTime).TotalSeconds
-    if ($runtime -le 0) { "N/A" } else { [math]::Round($_.CPU / $runtime * 100 / $cpuCount, 2) }
+    try {
+        $startTime = $_.StartTime
+        $cpuTime = $_.CPU
+        if (-not $startTime -or -not $cpuTime) { "N/A" }
+        else {
+            $runtime = (Get-Date).Subtract($startTime).TotalSeconds
+            if ($runtime -le 0) { "N/A" } else { [math]::Round($cpuTime / $runtime * 100 / $cpuCount, 2) }
+        }
+    }
+    catch { "N/A" }
 }}
 $htmlContent += "<table><tr><th>Process Name</th><th>CPU %</th></tr>"
 foreach ($proc in $topCpuProcesses) {
