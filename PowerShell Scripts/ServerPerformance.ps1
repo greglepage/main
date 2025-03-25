@@ -90,7 +90,10 @@ $cpuUsage = Get-AverageCounter -CounterPath "\Processor(_Total)\% Processor Time
 $cpuClass = if ($cpuUsage -gt 80) { "warning" } else { "" }
 $htmlContent += "<p><strong>Average CPU Usage:</strong> <span class='$cpuClass'>$cpuUsage%</span></p>"
 if ($cpuUsage -gt 80) { $potentialIssues += "High CPU usage" }
-$topCpuProcesses = Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 -Property Name, @{Name='CPU%';Expression={[math]::Round($_.CPU / (Get-Date).Subtract($_.StartTime).TotalSeconds * 100 / $cpuCount, 2)}}
+$topCpuProcesses = Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 -Property Name, @{Name='CPU%';Expression={
+    $runtime = (Get-Date).Subtract($_.StartTime).TotalSeconds
+    if ($runtime -le 0) { "N/A" } else { [math]::Round($_.CPU / $runtime * 100 / $cpuCount, 2) }
+}}
 $htmlContent += "<table><tr><th>Process Name</th><th>CPU %</th></tr>"
 foreach ($proc in $topCpuProcesses) {
     $htmlContent += "<tr><td>$($proc.Name)</td><td>$($proc.'CPU%')</td></tr>"
