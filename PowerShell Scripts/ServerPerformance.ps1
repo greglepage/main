@@ -94,10 +94,15 @@ $topCpuProcesses = Get-Process | Sort-Object CPU -Descending | Select-Object -Fi
     try {
         $startTime = $_.StartTime
         $cpuTime = $_.CPU
-        if (-not $startTime -or -not $cpuTime) { "N/A" }
+        if (-not $startTime -or -not $cpuTime -or $cpuTime -lt 0) { "N/A" }
         else {
             $runtime = (Get-Date).Subtract($startTime).TotalSeconds
-            if ($runtime -le 0) { "N/A" } else { [math]::Round($cpuTime / $runtime * 100 / $cpuCount, 2) }
+            if ($runtime -lt 1) { "N/A" }  # Minimum runtime threshold of 1 second
+            else {
+                $cpuPercent = $cpuTime / $runtime * 100 / $cpuCount
+                if ($cpuPercent -gt (100 * $cpuCount)) { "N/A" }  # Cap at 100% per CPU
+                else { [math]::Round($cpuPercent, 2) }
+            }
         }
     }
     catch { "N/A" }
@@ -107,6 +112,7 @@ foreach ($proc in $topCpuProcesses) {
     $htmlContent += "<tr><td>$($proc.Name)</td><td>$($proc.'CPU%')</td></tr>"
 }
 $htmlContent += "</table></div>"
+
 
 # Memory Performance
 $htmlContent += "<div class='section'><h2>Memory Performance</h2>"
